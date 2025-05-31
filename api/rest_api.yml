@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Социальная сеть для путешественников
-  version: 1.0.0
+  version: 1.0.1
   description: |
     API для социальной сети путешественников с 10M DAU
     - SSO Service: управление токенами и сессиями
@@ -154,14 +154,14 @@ components:
           type: string
         username:
           type: string
-    UserPreviewWithSubsciption:
+    UserPreviewWithSubscription:
       type: object
       properties:
         id:
           type: string
         username:
           type: string
-        is_subscripted:
+        is_subscribed:
           type: boolean
     Post:
       type: object
@@ -180,7 +180,7 @@ components:
             name:
               type: string
         author:
-          $ref: '#/components/schemas/UserPreviewWithSubsciption'
+          $ref: '#/components/schemas/UserPreviewWithSubscription'
         photos:
           type: array
           items:
@@ -457,7 +457,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserPreview'
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserPreview'
   /account/private/users/{user_id}:
     get:
       tags: [Account]
@@ -516,7 +518,7 @@ paths:
                   maxItems: 5
                 place_id:
                   type: string
-              required: [text]
+              required: [description, photos]
       responses:
         201:
           description: Пост создан
@@ -1019,7 +1021,7 @@ paths:
           schema:
             type: integer
             default: 1
-        - name: size
+        - name: limit
           in: query
           schema:
             type: integer
