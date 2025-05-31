@@ -1,0 +1,1066 @@
+openapi: 3.0.3
+info:
+  title: Социальная сеть для путешественников
+  version: 1.0.0
+  description: |
+    API для социальной сети путешественников с 10M DAU
+    - SSO Service: управление токенами и сессиями
+    - Приватные эндпоинты доступны только внутри доверенной сети
+
+servers:
+  - url: https://gate.example.com
+    description: Публичный шлюз
+
+tags:
+  - name: SSO
+    description: Управления токенами
+  - name: Account
+    description: Управление аккаунтом пользователя
+  - name: Post
+    description: Управление постами
+  - name: Media
+    description: Работа с медиа
+  - name: Place
+    description: Работа с местами
+  - name: Reaction
+    description: Лайки
+  - name: Comment
+    description: Комментарии
+  - name: Subscription
+    description: Подписки
+  - name: Feed
+    description: Ленты
+
+components:
+  securitySchemes:
+    AccessToken:
+      type: apiKey
+      in: cookie
+      name: access_token
+    RefreshToken:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+      
+  parameters:
+    headerXUserSession:
+      name: X-User-Session
+      in: header
+      description: 'Уникальный идентификатор сессии. Использовать при запросе между сервисами'
+      required: true
+      schema:
+        type: string
+        example: 92de629b-8b26-4b4b-b8fc-5aec1c0bce96
+    headerXUserId:
+      name: X-User-Id
+      in: header
+      description: 'Уникальный идентификатор пользователя. Использовать при запросе между сервисами'
+      required: true
+      schema:
+        type: string
+        example: db3b33e0-30b4-42b6-b7fa-bc84a473f835
+  schemas:
+    Place:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 1d25065f-f993-462d-9007-d0941ce41a83
+        name:
+          type: string
+          example: Токио
+        distance:
+          type: number
+          example: 300
+        post_count:
+          type: number
+          example: 38
+          
+    UserCreate:
+      type: object
+      required: [email, password, name]
+      properties:
+        email: 
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          example: Str0ngP@ssw0rd!
+        name:
+          type: string
+          example: "Alex"
+        gender:
+          type: string
+          enum: [male, female]
+          example: "male"
+    TokenPair:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT access token (15 минут TTL)
+        refresh_token:
+          type: string
+          description: JWT refresh token (7 дней TTL)
+    AuthRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: 
+          type: string
+          format: email
+        password:
+          type: string
+    AuthResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: b4093301-9488-406f-8d3e-2000be4dc4ee
+        name:
+          type: string
+          example: Alex
+        email:
+          type: string
+          example: user@example.com
+        gender:
+          type: string
+          enum: [male, female]
+          example: "male"
+    UploadResponse:
+      type: object
+      properties:
+        upload_url:
+          type: string
+        cdn_url:
+          type: string
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        author:
+          $ref: '#/components/schemas/UserPreview'
+        created_at:
+          type: string
+          format: date-time
+    UserPreview:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+    UserPreviewWithSubsciption:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        is_subscripted:
+          type: boolean
+    Post:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 2d124b3e-c974-4309-ab50-2cafe280f753
+        description:
+          type: string
+          example: Невероятный закат на пляже Кута!
+        geo:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        author:
+          $ref: '#/components/schemas/UserPreviewWithSubsciption'
+        photos:
+          type: array
+          items:
+            type: string
+          example: ["https://cdn.travelsocial.net/beach_sunset.jpg"]
+        likes:
+          type: integer
+          example: 42
+        is_liked:
+          type: boolean
+        comments:
+          type: integer
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-10-05T14:48:00Z"
+    PostDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 2d124b3e-c974-4309-ab50-2cafe280f753
+        author_id: 
+          type: string
+          example: a0f8e0c9-546d-4845-a940-fd5420888675
+        description:
+          type: string
+          example: Невероятный закат на пляже Кута!
+        photos:
+          type: array
+          items:
+            type: string
+          example: ["https://cdn.travelsocial.net/beach_sunset.jpg"]
+        likes:
+          type: integer
+          example: 42
+        comments:
+          type: integer
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-10-05T14:48:00Z"
+
+  responses:
+    BadRequestResponse:
+      description: 'Неверный запрос'
+    InternalServerErrorResponse:
+      description: 'Системная ошибка'
+    ValidationErrorResponse:
+       description: Ошибки валидации
+    UnauthorizedResponse:
+      description: Пользователь не авторизован
+    SessionResponse:
+      description: Сессия успешно создана
+      headers:
+        X-RateLimit-Limit:
+          description: Лимит запросов в минуту
+          schema:
+            type: integer
+            example: 100
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/TokenPair'
+
+paths:
+  # =====================
+  # SSO Endpoints
+  # =====================
+  /sso/health-check:
+    get:
+      tags: [SSO]
+      summary: 'Проверка работоспособности микросервиса'
+      description: 'Проверка работоспособности микросервиса'
+      responses:
+        200:
+          description: 'Микросервис работает'
+        500:
+          $ref: '#/components/responses/InternalServerErrorResponse'
+  /sso/private/sessions:
+    post:
+      tags: [SSO]
+      summary: "Создание новой сессии"
+      description: |
+        Создает новую сессию и генерирует токены.
+        Вызывается Account Service после успешной аутентификации.
+      parameters:
+        - $ref: '#/components/parameters/headerXUserId'
+      responses:
+        201:
+          $ref: '#/components/responses/SessionResponse'
+        400:
+          $ref: '#/components/responses/BadRequestResponse'
+        429:
+          description: Слишком много запросов
+    delete:
+      tags: [SSO]
+      summary: "Завершение сессии"
+      parameters:
+        - $ref: '#/components/parameters/headerXUserId'
+        - $ref: '#/components/parameters/headerXUserSession'
+      responses:
+        204:
+          description: Сессия завершена
+        404:
+          description: Сессия не найдена
+  /sso/private/refresh:
+    post:
+      tags: [SSO]
+      summary: "Обновление токенов"
+      description: |
+        Обновляет пару access/refresh токенов.
+        Вызывается шлюзом при истечении access token.
+      parameters:
+        - $ref: '#/components/parameters/headerXUserId'
+        - $ref: '#/components/parameters/headerXUserSession'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh:
+                  type: string
+      responses:
+        200:
+          description: Токены обновлены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        400:
+          $ref: '#/components/responses/BadRequestResponse'
+        422:
+          $ref: '#/components/responses/ValidationErrorResponse'
+  # ========================
+  # Account Endpoints
+  # ========================
+  /account/health-check:
+    get:
+      tags: [Account]
+      summary: 'Проверка работоспособности микросервиса'
+      description: 'Проверка работоспособности микросервиса'
+      responses:
+        200:
+          description: 'Микросервис работает'
+        500:
+          $ref: '#/components/responses/InternalServerErrorResponse'
+  /account/register:
+    post:
+      tags: [Account]
+      summary: "Регистрация нового пользователя"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        201:
+          description: Пользователь создан
+        400:
+           $ref: '#/components/responses/BadRequestResponse'
+        409:
+          description: Пользователь с таким email существует
+  /account/verify:
+    post:
+      tags: [Account]
+      summary: "Подтверждение регистрации"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+      responses:
+        200:
+          description: Регистрация подтверждена
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: |
+                  access_token=eyJ...; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=900
+                  refresh_token=eyJ...; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
+                
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        400:
+          $ref: '#/components/responses/BadRequestResponse'
+
+  /account/login:
+    post:
+      tags: [Account]
+      summary: "Аутентификация пользователя"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        200:
+          description: Пользователь успешно авторизован
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: |
+                  access_token=eyJ...; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=900
+                  refresh_token=eyJ...; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        422:
+          $ref: '#/components/responses/ValidationErrorResponse'
+
+  /account/logout:
+    post:
+      tags: [Account]
+      summary: "Завершение сессии"
+      security:
+        - AccessToken: []
+        - RefreshToken: []
+      responses:
+        204:
+          description: Пользователь успешно разлогинен
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: |
+                  access_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT
+                  refresh_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT
+        401:
+          $ref: '#/components/responses/UnauthorizedResponse'
+        400:
+          $ref: '#/components/responses/BadRequestResponse'
+        422:
+          $ref: '#/components/responses/ValidationErrorResponse'
+  /account/private/users:
+    post:
+      tags: [Account]
+      summary: "Получение пользователей"
+      description: "Поиск пользователей по id"
+      parameters:
+        - $ref: '#/components/parameters/headerXUserId'
+        - $ref: '#/components/parameters/headerXUserSession'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 5
+              required: [ids]
+      responses:
+        200:
+          description: "Пользователи"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreview'
+  /account/private/users/{user_id}:
+    get:
+      tags: [Account]
+      summary: "Поиск пользователя"
+      description: "Поиск пользователя"
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/headerXUserId'
+        - $ref: '#/components/parameters/headerXUserSession'
+      responses:
+        200:
+          description: "Пользователь успешно найден"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreview'
+        404:
+          description: "Пользователь не найден"
+  # ========================
+  # Posts Endpoints
+  # ========================
+  /posts/health-check:
+    get:
+      tags: [Post]
+      summary: 'Проверка работоспособности микросервиса'
+      description: 'Проверка работоспособности микросервиса'
+      responses:
+        200:
+          description: 'Микросервис работает'
+        500:
+          $ref: '#/components/responses/InternalServerErrorResponse'
+  /posts:
+    post:
+      tags: [Post]
+      summary: Создать пост
+      security:
+        - AccessToken: []
+        - RefreshToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                photos:
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 5
+                place_id:
+                  type: string
+              required: [text]
+      responses:
+        201:
+          description: Пост создан
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+        401:
+          $ref: '#/components/responses/UnauthorizedResponse'
+        400:
+          $ref: '#/components/responses/BadRequestResponse'
+        422:
+          $ref: '#/components/responses/ValidationErrorResponse'
+  /posts/private/recent:
+    post:
+      tags: [Post]
+      summary: Получение информации постов пользователей
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 5
+              required: [ids]
+      parameters:
+        - $ref: '#/components/parameters/headerXUserId'
+        - $ref: '#/components/parameters/headerXUserSession'
+      responses:
+        200:
+          description: Список запрошенных постов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PostDetail'
+  # ========================
+  # Media Endpoints
+  # ========================  
+  /media/health-check:
+    get:
+      tags: [Media]
+      summary: 'Проверка работоспособности микросервиса'
+      description: 'Проверка работоспособности микросервиса'
+      responses:
+        200:
+          description: 'Микросервис работает'
+        500:
+          $ref: '#/components/responses/InternalServerErrorResponse'
+  /media/presigned-url:
+    post:
+      tags: [Media]
+      summary: Получить список URL для загрузки медиа
+      security:
+        - AccessToken: []
+        - RefreshToken: []
+      responses:
+        200:
+          description: URL для загрузки
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UploadResponse'
+        500:
+          $ref: '#/components/responses/InternalServerErrorResponse'
+  # ========================
+  # Place Endpoints
+  # ========================
+  /places/health-check:
+    get:
+      tags: [Place]
+      summary: 'Проверка работоспособности микросервиса'
+      description: 'Проверка работоспособности микросервиса'
+      responses:
+        200:
+          description: 'Микросервис работает'
+        500:
+          $ref: '#/components/responses/InternalServerErrorResponse'
+  /places/nearby:
+    get:
+      tags: [Place]
+      summary: Найти места рядом
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+          example: 55.7539
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+          example: 37.6208
+        - name: radius
+          in: query
+          schema:
+            type: integer
+            default: 5000
+          description: Радиус в метрах
+      responses:
+        200:
+          description: Список мест
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Place'
+  /places/search:
+    get:
+      tags: [Place]
+      summary: Поиск по местам
+      description: Возвращает самые популярные места для путешествий запросу пользователя
+      parameters:
+        - name: q
+          in: query
+          description: Фильтр по месту
+          schema:
+            type: string
+          example: Япония
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        200:
+          description: Список мест
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Place'
+  /places/private/{place_id}:
+    get:
+      tags: [Place]
+      summary: Получить информацию о месте
+      parameters:
+        - name: place_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/headerXUserId'
+        - $ref: '#/components/parameters/headerXUserSession'
+      responses:
+        200:
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        404:
+          description: Место не найдено
+  # ========================
+  # Reaction Endpoints
+  # ========================
+  /reactions/health-check:
+    get:
+      tags: [Reaction]
+      summary: 'Проверка работоспособности микросервиса'
+      description: 'Проверка работоспособности микросервиса'
+      responses:
+        200:
+          description: 'Микросервис работает'
+        500:
+          $ref: '#/components/responses/InternalServerErrorResponse'
+  /reactions/{post_id}:
+    post:
+      tags: [Reaction]
+      summary: Поставить лайк
+      security:
+        - AccessToken: []
+        - RefreshToken: []
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 49cbf6c3-bcd9-4e63-a985-a2833c674a62
+      responses:
+        200:
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_likes:
+                    type: integer
+                    example: 42
+        401:
+          $ref: '#/components/responses/UnauthorizedResponse'
+    delete:
+      tags: [Reaction]
+      summary: Убрать лайк
+      security:
+        - AccessToken: []
+        - RefreshToken: []
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 49cbf6c3-bcd9-4e63-a985-a2833c674a62
+      responses:
+        200:
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_likes:
+                    type: integer
+                    example: 41
+        401:
+          $ref: '#/components/responses/UnauthorizedResponse'
+  /reactions/private/posts:
+    post:
+      tags: [Reaction]
+      summary: Список реакций
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  description: Идентификаторы постов
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 5
+              required: [ids]
+      parameters:
+        - $ref: '#/components/parameters/headerXUserId'
+        - $ref: '#/components/parameters/headerXUserSession'
+      responses:
+        200:
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  # ========================
+  # Comment Endpoints
+  # ========================
+  /comment/health-check:
+    get:
+      tags: [Comment]
+      summary: 'Проверка работоспособности микросервиса'
+      description: 'Проверка работоспособности микросервиса'
+      responses:
+        200:
+          description: 'Микросервис работает'
+        500:
+          $ref: '#/components/responses/InternalServerErrorResponse'
+  /comments/{post_id}:
+    post:
+      tags: [Comment]
+      summary: Добавить комментарий
+      security:
+        - AccessToken: []
+        - RefreshToken: []
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  maxLength: 500
+              required: [text]
+      responses:
+        201:
+          description: Комментарий добавлен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+        401:
+          $ref: '#/components/responses/UnauthorizedResponse'
+        400:
+          $ref: '#/components/responses/BadRequestResponse'
+        422:
+          $ref: '#/components/responses/ValidationErrorResponse'
+    get:
+      tags: [Comment]
+      summary: Получить комментарии
+      security:
+        - AccessToken: []
+        - RefreshToken: []
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        200:
+          description: Список комментариев
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+        401:
+          $ref: '#/components/responses/UnauthorizedResponse'
+  /comments/{comment_id}:
+    delete:
+      tags: [Comment]
+      summary: Удалить комментарий
+      security:
+        - AccessToken: []
+        - RefreshToken: []
+      parameters:
+        - name: comment_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: Комментарий удален
+        401:
+          $ref: '#/components/responses/UnauthorizedResponse'
+        400:
+          $ref: '#/components/responses/BadRequestResponse'
+  # ========================
+  # Subscription Endpoints
+  # ========================
+  /subscriptions/health-check:
+    get:
+      tags: [Subscription]
+      summary: 'Проверка работоспособности микросервиса'
+      description: 'Проверка работоспособности микросервиса'
+      responses:
+        200:
+          description: 'Микросервис работает'
+        500:
+          $ref: '#/components/responses/InternalServerErrorResponse'
+  /subscriptions/{user_id}:
+    post:
+      tags: [Subscription]
+      summary: Подписаться на пользователя
+      security:
+        - AccessToken: []
+        - RefreshToken: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 0b53a0bd-1f79-44f6-92f2-d8de6a04f700
+      responses:
+        201:
+          description: Подписка оформлена
+        401:
+          $ref: '#/components/responses/UnauthorizedResponse'
+    delete:
+      tags: [Subscription]
+      summary: Отписаться от пользователя
+      security:
+        - AccessToken: []
+        - RefreshToken: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 0b53a0bd-1f79-44f6-92f2-d8de6a04f700
+      responses:
+        204:
+          description: Подписка отменена
+        401:
+          $ref: '#/components/responses/UnauthorizedResponse'
+  /subscriptions/private/following:
+    get:
+      tags: [Subscription]
+      summary: Список подписок
+      parameters:
+        - $ref: '#/components/parameters/headerXUserId'
+        - $ref: '#/components/parameters/headerXUserSession'
+      responses:
+        200:
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  # ========================
+  # Subscription Endpoints
+  # ========================
+  /feed/health-check:
+    get:
+      tags: [Feed]
+      summary: 'Проверка работоспособности микросервиса'
+      description: 'Проверка работоспособности микросервиса'
+      responses:
+        200:
+          description: 'Микросервис работает'
+        500:
+          $ref: '#/components/responses/InternalServerErrorResponse'
+  /feed/personal:
+    get:
+      tags: [Feed]
+      summary: Персональная лента (подписки)
+      description: Возвращает посты пользователей, на которых вы подписаны, в обратном хронологическом порядке
+      security:
+        - AccessToken: []
+        - RefreshToken: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        200:
+          description: Лента постов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Post'
+  /feed/{place_id}:
+    get:
+      tags: [Feed]
+      summary: Посты по месту
+      description: Возвращает все посты, связанные с конкретным местом
+      parameters:
+        - name: place_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 448bbd57-2e38-4260-aab2-23063659961c
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        200:
+          description: Список постов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Post'
+  /feed/{user_id}:
+    get:
+      tags: [Feed]
+      summary: Лента пользователя
+      description: Все посты конкретного путешественника (новые сначала)
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 0d70f0cb-7826-43c3-847f-a4c470b71c23
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        200:
+          description: Посты пользователя
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Post'
