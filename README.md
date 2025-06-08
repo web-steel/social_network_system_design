@@ -177,7 +177,7 @@ created_at - 8 байт
 - async
 
 - 1 диск на хост = 2 шарда * 3 = 6 хостов по 1 диску
-- key based по author_id
+- key based по **author_id**
 
 ### Реакции
 
@@ -211,7 +211,7 @@ is_like - 1 байт
 
 - RF = 2
 - master-slave
-- sync
+- async
 
 - 2 диска на хост = 1 шард * 2 = 2 хостов по 2 диску
 
@@ -259,7 +259,7 @@ create_at - 8 байт
 #### Оценка ресурсов Комментарий
 
 - Capacity = 71.2 * 86 400 * 365 = 2.3 ТБ
-- DISKS:
+- DISKS:§
     - 3 425 / 100 = 35 (HDD)
     - 3 425 / 1 000 = 4 (SSD SATA)
 
@@ -271,8 +271,8 @@ create_at - 8 байт
 - RF = 4
 - peer-to-peer
 
-- 1 диска на хост = 4 хоста по 1 диску
-- key based по post_id
+- 1 диск на хост = 4 хоста по 1 диску
+- key based по **post_id**
 
 ### Подписки
 
@@ -305,8 +305,8 @@ subscriber_id - 16 байт
 - RF = 2
 - peer-to-peer
 
-- 1 диска на хост = 2 хостов по 1 диску
-- key based по subscriber_id
+- 1 диск на хост = 2 хостов по 1 диску
+- key based по **subscriber_id**
 
 ### CDN
 
