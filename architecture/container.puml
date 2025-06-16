@@ -1,0 +1,82 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include <cloudinsight/kafka>
+!include <cloudinsight/redis>
+!include <cloudinsight/postgresql>
+!include <cloudinsight/cassandra>
+!include <cloudinsight/elasticsearch>
+
+System_Boundary(socialNetwork, "Social Network System") {
+
+  Container(gateway, "API Gateway", "Kong", "Обрабатывает входящие запросы и маршрутизирует к нужным микросервисам")
+
+  
+  Container(feed, "Feed Service", "Go", "Формирование лент")
+ 
+  Container(media, "Media Service", "Go", "Генерация presigned URLs, работа с MinIO")
+
+  ContainerDb(minio, "S3 хранилище", "MinIO", "Хранит фото", $tags="db")
+  ContainerDb(feed.redis, "Хранилище лент", "Redis", $sprite="redis", $tags="db")
+
+  ContainerQueue(kafka, "Event Stream", "Kafka", $sprite="kafka")
+
+  ContainerDb(post.pgsql, "Хранилище\n постов", "PgSQL", $sprite="postgresql", $tags="db")
+  Container(post, "Post Service", "Go", "Создание и получение постов")
+ 
+  ContainerDb(reaction.pgsql, "Хранилище\n реакций", "PgSQL", $sprite="postgresql", $tags="db")
+  Container(reaction, "Reaction Service", "Go", "Лайки на постах")
+ 
+  ContainerDb(sso.redis, "Хранилище\n токенов", "Redis", $sprite="redis", $tags="db")
+  Container(sso, "SSO Service", "Go", "Аутентификация, генерация access/refresh токенов")
+
+  ContainerDb(account.pgsql, "Хранилище пользователей", "PgSQL", $sprite="postgresql", $tags="db")
+  Container(account, "Account Service", "Go", "Регистрация, логин, управление аккаунтом")
+
+  ContainerDb(subscription.cassandra, "Хранилище\n подписчиков", "Cassandra", $sprite="cassandra", $tags="db")
+  Container(subscription, "Subscription Service", "Go", "Подписки между пользователями")
+
+  ContainerDb(comment.cassandra, "Хранилище\n комментариев", "Cassandra", $sprite="cassandra", $tags="db")
+  Container(comment, "Comment Service", "Go", "Управление комментариями")
+
+  ContainerDb(place.pgsql, "Хранилище мест", "PgSQL", $sprite="postgresql", $tags="db")
+  ContainerDb(place.elastic, "ElasticSearch", "ElasticSearch", "Поисковый движок", $sprite="elasticsearch")
+  Container(place, "Place Service", "Go", "Работа с местами")
+}
+
+System_Ext(cdn, "CDN", "Раздаёт медиа пользователям")
+
+Person(user, "Пользователь")
+
+Rel_D(user, gateway, "Отправляет REST запросы")
+
+Rel(user, minio, "Загрузка фотографий пользователя")
+
+Rel_L(account, sso, "Аутентификация", HTTPS/JSON)
+Rel(gateway, post, "Создания постов", HTTPS/JSON)
+Rel(post, kafka, "Событие создания постов", Kafka API)
+Rel(kafka, feed, "Событие создания постов/подписчики/реакции", Kafka API)
+Rel_U(gateway, account, "Регистрация/Авторизация", HTTPS/JSON)
+Rel(gateway, comment, "Получение/Создания комментарий", HTTPS/JSON)
+Rel(gateway, reaction, "Реакция пользователя", HTTPS/JSON)
+Rel(gateway, feed, "Получение лент", HTTPS/JSON)
+Rel(gateway, subscription, "Подписаться/Отписаться на пользователя", HTTPS/JSON)
+Rel_L(gateway, place, "Получение мест", HTTPS/JSON)
+Rel(gateway, media, "Получить список URL для загрузки медиа", HTTPS/JSON)
+
+Rel_U(media, minio, "Генерация ссылок для загрузки")
+Rel(cdn, minio, "Отдаёт через CDN", HTTPS/JSON)
+Rel(cdn, user, "Получение медиа", HTTPS/JSON)
+BiRel_D(feed, feed.redis, " ")
+BiRel_R(account, account.pgsql, " ")
+BiRel_L(sso, sso.redis, " ")
+BiRel_R(post, post.pgsql, " ")
+BiRel(place, place.pgsql, "Модель записи", SQL)
+BiRel(place, place.elastic, "Модель чтения")
+BiRel(reaction, reaction.pgsql, " ")
+Rel_U(reaction, kafka, "Реакция пользователя", Kafka API)
+Rel_D(comment, kafka, "Создания комментария", Kafka API)
+Rel_U(kafka, post, "Реакции/Комментарии пользователя", Kafka API)
+BiRel_D(comment, comment.cassandra, " ")
+BiRel_R(subscription, subscription.cassandra, " ")
+Rel(subscription, kafka, "Подписки пользователя", Kafka API)
+@enduml

@@ -1,0 +1,13 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+Person(user, "Пользователь")
+
+System(social_network, "Social Network System", "Социальная сеть с лентой, постами, реакциями, комментариями")
+
+System_Ext(cdn, "CDN", "Внешняя система доставки контента")
+
+Rel(user, social_network, "Публикует посты, ставит лайки, комментирует и т.д.", "HTTPS/JSON")
+Rel(social_network, cdn, "Загрузка медиа", "HTTPS")
+Rel(cdn, user, "Получение медиа", "HTTPS")
+@enduml

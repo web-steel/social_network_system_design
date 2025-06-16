@@ -1,0 +1,40 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+!include <cloudinsight/kafka>
+!include <cloudinsight/redis>
+
+Person(user, "Пользователь")
+
+ContainerQueue(event, "Event Stream", kafka, $sprite=kafka)
+
+Container_Boundary(feed, "Feed Service") {
+    Component(feed.http, "HTTP API", "Go", "Обрабатывает HTTP-запросы, маршрутизирует вызовы")
+    Component(feed.consumer, "Consumer feeds", "Go", "Считывание данных пользователя")
+    Component(feed.cron, "CRON feeds", "Go", "Предподготовка лент")
+    ComponentDb(feed.redis, , Redis, Хранение лент, $sprite=redis)
+}
+
+Container(post, "Post Service", "Go", "Сервис постов")
+Container(place, "Place Service", "Go", "Сервис мест")
+Container(subscription, "Subscription Service", "Go", "Сервис подписок")
+Container(account, "Account Service", "Go", "Сервис пользователей")
+Container(reaction, "Reaction Service", "Go", "Сервис лайков")
+
+Rel_R(feed.redis, feed.http, "Получение массива идентификаторов постов", "redis-cli")
+Rel(user, feed.http, "Полуение лент", HTTPS/JSON)
+Rel(feed.http, post, "Получение информации постов", "HTTPS/JSON")
+Rel(event, feed.consumer, "События пользователя", "Kafka API")
+Rel(feed.consumer, feed.redis, "Обновление лент", "redis-cli")
+Rel_R(feed.cron, feed.redis, "Обновление лент", "redis-cli")
+Rel(feed.cron, post, "Получение информации постов", "HTTPS/JSON")
+
+Rel(feed.cron, place, "Получение мест", "HTTPS/JSON")
+Rel(feed.cron, account, "Получение информации пользователя", "HTTPS/JSON")
+Rel(feed.cron, subscription, "Получение информации о подписках", "HTTPS/JSON")
+Rel(feed.cron, reaction, "Получение информации о реакциях", "HTTPS/JSON")
+
+Rel(feed.http, place, "Получение мест", "HTTPS/JSON")
+Rel(feed.http, account, "Получение информации пользователя", "HTTPS/JSON")
+Rel(feed.http, subscription, "Получение информации о подписках", "HTTPS/JSON")
+Rel(feed.http, reaction, "Получение информации о реакциях", "HTTPS/JSON")
+@enduml
